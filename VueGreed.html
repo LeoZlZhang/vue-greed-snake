@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title></title>
+
+    <script src="vue.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div id="playground" :style="{height:boundary.y+'px', width:boundary.x+'px'}">
+            <div id="snake" :style="snake"></div>
+            <div id="bean" :style="bean"></div>
+            <template v-for="(pos,i) in tailsPos">
+              <t-tail :context="pos" :num=i></t-tail>
+            </template> {{interval}}
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        Vue.component('t-tail', {
+            template: '<div id="tail" :style="pos"></div>',
+            props: {
+                num: Number,
+                context: {
+                    type: Object,
+                    default: () => {
+                        return {
+                            x: -1,
+                            y: -1
+                        }
+                    }
+                }
+            },
+            computed: {
+                pos(){
+                    console.log(this.num + 'recal')
+                    return {
+                        left: this.context.x + 'px',
+                        top: this.context.y + 'px'
+                    }
+                }
+            }
+        })
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                num: 3,
+                pos: {
+                    x: 0,
+                    y: 0
+                },
+                beanPos: {
+                    x: 50,
+                    y: 0
+                },
+                step: 6,
+                dir: {
+                    left: false,
+                    right: false,
+                    up: false,
+                    down: false
+                },
+                boundary: {
+                    x: 0,
+                    y: 0
+                },
+                timer: {},
+                tailsPos: [],
+                interval: 100,
+                tailtail: {},
+                tailhead: {}
+            },
+            computed: {
+                snake() {
+                    if (this.pos.x < 0)
+                        this.pos.x = this.boundary.x;
+                    else if (this.pos.x > this.boundary.x)
+                        this.pos.x = 0;
+                    else if (this.pos.y < 0)
+                        this.pos.y = this.boundary.y;
+                    else if (this.pos.y > this.boundary.y)
+                        this.pos.y = 0;
+                    var tailheadpos = this.tailsPos.indexOf(this.tailhead)
+                    var tailheadposNex = tailheadpos == this.tailsPos.length - 1 ? 0 : tailheadpos + 1
+                    for (var i = 0; i < this.tailsPos.length; i++) {
+                        if (i != tailheadpos && i != tailheadposNex) {
+                            console.log('judge')
+                            if (this.touched(this.tailsPos[i].x, this.tailsPos[i].y, this.tailsPos[i].x + 10, this.tailsPos[i].y + 10)) {
+                                this.lose();
+                                break;
+                            }
+                        }
+                    }
+                    if (this.touched(this.beanPos.x, this.beanPos.y, this.beanPos.x + 6, this.beanPos.y + 6)) {
+                        this.nextBean();
+                        for (i in [1, 1, 1, 1, 1, 1])
+                            this.addTail(-10, -10)
+                    }
+                    return {
+                        top: this.pos.y + 'px',
+                        left: this.pos.x + 'px'
+                    }
+                },
+                bean() {
+                    return {
+                        top: this.beanPos.y + 'px',
+                        left: this.beanPos.x + 'px'
+                    }
+                }
+            },
+            methods: {
+                nextBean() {
+                    this.beanPos.x = parseInt(Math.random() * this.boundary.x);
+                    this.beanPos.y = parseInt(Math.random() * this.boundary.y);
+                },
+                lose() {
+                    alert('you lose')
+                    clearInterval(this.timer);
+                },
+                addTail(x, y) {
+                    this.tailsPos.push({
+                        x: x,
+                        y: y
+                    })
+
+                    this.interval -= this.interval > 30 ? 2 : 0
+
+                    clearInterval(this.timer);
+                    this.timer = setInterval(this.move, this.interval)
+                },
+                touched(x, y, x_, y_) {
+                    return this.pos.x + 10 > x && this.pos.x < x_ &&
+                        this.pos.y + 10 > y && this.pos.y < y_
+                },
+                move() {
+                    if (this.tailsPos.length > 0 && !this.tailtail) {
+                        this.tailtail = this.tailsPos[0];
+                        this.tailhead = this.tailsPos[0];
+                    }
+
+                    if (this.tailsPos.length > 0 && this.tailtail) {
+                        var pos = this.tailsPos.indexOf(this.tailtail)
+                        this.tailtail.x = this.pos.x;
+                        this.tailtail.y = this.pos.y;
+                        this.tailhead = this.tailtail;
+                        pos = pos == 0 ? this.tailsPos.length - 1 : pos - 1
+                        this.tailtail = this.tailsPos[pos];
+                    }
+
+                    this.pos.x += this.dir.left ? this.step * -1 : this.dir.right ? this.step : 0;
+                    this.pos.y += this.dir.up ? this.step * -1 : this.dir.down ? this.step : 0;
+                }
+            },
+            created() {
+                this.boundary.x = window.innerWidth;
+                this.boundary.y = window.innerHeight;
+                var vm = this;
+                var cleanDir = (dir) => {
+                    dir.up = false;
+                    dir.down = false;
+                    dir.left = false;
+                    dir.right = false;
+                };
+
+
+
+                this.timer = setInterval(this.move, this.interval)
+                window.onkeydown = function(e) {
+
+                    var code = e.keyCode ? e.keyCode : e.which;
+
+                    if (code === 38 && !vm.dir.down) { //up key
+                        cleanDir(vm.dir);
+                        vm.dir.up = true;
+                    } else if (code === 40 && !vm.dir.up) { //down key
+                        cleanDir(vm.dir);
+                        vm.dir.down = true;
+                    } else if (code === 37 && !vm.dir.right) { //left
+                        cleanDir(vm.dir);
+                        vm.dir.left = true;
+                    } else if (code === 39 && !vm.dir.left) { //right
+                        cleanDir(vm.dir);
+                        vm.dir.right = true;
+                    } else if (code === 27) {
+                        clearInterval(vm.timer);
+                    }
+                };
+            }
+        });
+    </script>
+    <style>
+        #snake {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background: gray;
+        }
+
+        #bean {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: green;
+        }
+
+        #tail {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            border-radius: 5px;
+            background: blue;
+        }
+
+        html,
+        body,
+        div {
+            height: 100%;
+            margin: 0;
+        }
+
+        #playground {
+            /*border: 1px solid red;*/
+        }
+    </style>
+</body>
+
+</html>
